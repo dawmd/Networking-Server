@@ -2,10 +2,10 @@
 #define __SK_MESSAGES_BASIC_MESSAGE_H__
 
 #include <messages/serializer.h>
-#include <stdexcept>
 #include <utilities/smart_struct.h>
 
 #include <optional>
+#include <stdexcept>
 #include <type_traits>
 #include <variant>
 
@@ -91,14 +91,18 @@ struct Message : public BasicMessage<Types...> {
 };
 
 /* Variant of basic messages -- implementation of serialisation and deserialisation */
+namespace detail {
+
 template<typename>
 struct is_message_t : public std::false_type {};
 
 template<std::size_t Id, typename... Types>
 struct is_message_t<Message<Id, Types...>> : public std::true_type {};
 
+} // namespace detail
+
 template<typename T>
-concept IsMessage = is_message_t<T>::value;
+concept IsMessage = detail::is_message_t<T>::value;
 
 template<typename... MessageTypes>
     requires (IsMessage<MessageTypes> && ...)
@@ -133,7 +137,9 @@ public:
         if (maybe_result)
             return std::move(maybe_result.get());
         else
-            throw std::runtime_error{"something"}; // TODO
+            throw std::runtime_error{
+                "[Message: deserialize] The ID of the message does not match any known one."
+            };
     }
 };
 

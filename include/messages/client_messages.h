@@ -11,19 +11,21 @@
 namespace SK {
 
 /* Directions */
-namespace Dir {
+namespace DirectionMessage {
 
-template<std::size_t Id>
-using Direction = Message<Id>;
+using Up    = Message<0>;
+using Right = Message<1>;
+using Down  = Message<2>;
+using Left  = Message<3>;
 
-using Up    = Direction<0>;
-using Right = Direction<1>;
-using Down  = Direction<2>;
-using Left  = Direction<3>;
+} // namespace DirectionMessage
 
-} // namespace Dir
-
-using Direction = std::variant<Dir::Up, Dir::Right, Dir::Down, Dir::Left>;
+using Direction = std::variant<
+    DirectionMessage::Up,
+    DirectionMessage::Right,
+    DirectionMessage::Down,
+    DirectionMessage::Left
+>;
 
 /* Messages */
 using Join          = Message<0, Field<String, "name">>;

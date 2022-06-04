@@ -1,15 +1,16 @@
 #ifndef __SK_MESSAGES_SERIALIZER_H__
 #define __SK_MESSAGES_SERIALIZER_H__
 
-#include <utilities/byte_inserter.h>
 #include <utilities/miscellaneous.h>
 
-#include <algorithm>    // std::reverse
 #include <bit>          // std::endian
 #include <concepts>
 #include <cstddef>
 
 namespace SK {
+
+template<typename>
+class Serializer;
 
 template<typename T, typename U = std::byte>
 concept IsConsumer = requires (T &consumer) {
@@ -22,16 +23,31 @@ concept IsInserter = requires (T &inserter, const U &value) {
     inserter.push(value);
 };
 
-template<typename>
-class Serializer;
+namespace detail {
 
-template<typename T, typename Inserter = ByteQueue>
-concept Serializable = requires (const T &t, Inserter &queue) {
-    // ByteQueue satisfies both IsConsumer and IsInserter concepts.
-    // The choice here was made arbitrarily just so we can only
-    // have one template parameter for the concept.
-    Serializer<T>::serialize(t, queue);
-    { Serializer<T>::deserialize(queue) } -> std::same_as<T>;
+// A dummy type used for defining the concept Serializable below.
+template<typename T>
+struct PhantomConsumer {
+    T get();
+    void pop();
+};
+
+// A dummy type for defining the concept Serializable below.
+struct PhantomInserter {
+    using value_type = int;
+    void push(int);
+};
+
+} // namespace detail
+
+template<
+    typename T,
+    typename Inserter = detail::PhantomInserter,
+    typename Consumer = detail::PhantomConsumer<std::byte>
+>
+concept Serializable = requires (const T &t, Inserter &inserter, Consumer &consumer) {
+    Serializer<T>::serialize(t, inserter);
+    { Serializer<T>::deserialize(consumer) } -> std::same_as<T>;
 };
 
 template<typename T>
@@ -66,12 +82,14 @@ public:
             consumer.pop();
         }
 
+        Type result = *reinterpret_cast<Type*>(bytes);
+
         // We need to swap the bytes because the endianness
         // of the network is big.
         if constexpr (std::endian::native == std::endian::little)
-            std::reverse(bytes, bytes + size);
-        
-        return *reinterpret_cast<Type*>(bytes);
+            return swap_endiannes(result);
+        else
+            return result;
     }
 };
 

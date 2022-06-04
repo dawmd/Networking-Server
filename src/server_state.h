@@ -33,6 +33,8 @@ struct GameState {
         std::vector<u32> death_count;
         std::vector<BombInfo> bombs;
         std::unordered_set<std::pair<u32, u32>> blocks;
+
+        std::vector<Event> events; // ...
     };
 
     std::vector<TurnInfo> turns;
@@ -44,17 +46,18 @@ struct ServerState {
 };
 
 struct ServerParameters {
-    u16 bomb_timer;
-    u8 player_count;
-    u64 turn_durations; // in ms
-    u16 explosion_radius;
-    u16 initial_blocks; // how many blocks at the beginning of a game
-    u16 game_length; // how many turns per game
     String server_name;
-    u16 port;
-    std::optional<u32> seed;
+    u8 players_count;
     u16 size_x;
     u16 size_y;
+    u16 game_length; // how many turns per game
+    u16 explosion_radius;
+    u16 bomb_timer;
+
+    u64 turn_durations; // in ms
+    u16 initial_blocks; // how many blocks at the beginning of a game
+    u16 port;
+    std::optional<u32> seed;
 };
 
 struct Server {

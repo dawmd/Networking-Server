@@ -9,9 +9,9 @@ std::uint32_t get_seed() {
 }
 
 std::uint32_t rand(std::uint32_t seed) {
-    constexpr std::uint64_t prime = 2'147'483'647UL;
-    constexpr std::uint64_t multiplier = 48'271UL;
-    return (static_cast<std::uint64_t>(seed) * multiplier) % prime;
+    const std::uint64_t prime = 2'147'483'647UL;
+    const std::uint64_t multiplier = 48'271UL;
+    return static_cast<std::uint32_t>((static_cast<std::uint64_t>(seed) * multiplier) % prime);
 }
 
 } // namespace SK
