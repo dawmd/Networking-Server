@@ -1,5 +1,6 @@
 #include "messages/serializer.h"
 #include "utilities/byte_inserter.h"
+#include "utilities/smart_struct.h"
 #include <deque>
 #include <messages/server_messages.h>
 #include <iostream>

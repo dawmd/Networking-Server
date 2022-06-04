@@ -50,6 +50,7 @@ concept Serializable = requires (const T &t, Inserter &inserter, Consumer &consu
     { Serializer<T>::deserialize(consumer) } -> std::same_as<T>;
 };
 
+/* Serializer for numeric types and std::byte */
 template<typename T>
     requires std::integral<T> ||
              std::floating_point<T> ||

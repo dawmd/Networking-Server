@@ -77,7 +77,14 @@ private:
     }
 };
 
-/* Message -- a general wrapper for messages with an ID */
+/*
+    Message -- a general wrapper for messages with an ID.
+    The idea for this struct is purely to give the user
+    a convenient way to define classes of messages
+    identified by an ID. Then that class of messages
+    can be represented by an std::variant consisting
+    of those types.
+*/
 template<std::size_t Id, typename... Types>
 struct Message : public BasicMessage<Types...> {
     using Super = BasicMessage<Types...>;
