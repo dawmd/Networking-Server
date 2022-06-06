@@ -1,32 +1,22 @@
 #ifndef __SK_UTILITIES_SMART_STRUCT_H__
 #define __SK_UTILITIES_SMART_STRUCT_H__
 
+#include <utilities/constexpr_string.h>
+
 #include <algorithm>
 #include <concepts>
-#include <cstdlib>  // std::size_t
+#include <cstddef>  // std::size_t
 #include <string_view>
 #include <tuple>
 #include <type_traits>
 
 namespace SK {
 
-template<std::size_t Length>
-    requires (Length > 1)
-struct ConstexprString {
-    char content[Length];
-
-    consteval ConstexprString(const char (&characters)[Length]) {
-        for (std::size_t i = 0; i < Length; ++i)
-            content[i] = characters[i];
-    }
-
-    consteval bool operator==(const ConstexprString&) const = default;
+template<typename FieldType, ConstexprString FieldName>
+struct Field {
+    using Type = FieldType;
+    static constexpr inline auto Name = FieldName;
 };
-
-template<std::size_t Length_1, std::size_t Length_2>
-consteval bool operator==(const ConstexprString<Length_1>&, const ConstexprString<Length_2>&) {
-    return false;
-}
 
 namespace detail {
 
@@ -57,16 +47,6 @@ consteval std::size_t find_index() {
         
     return result;
 }
-
-} // namespace detail
-
-template<typename FieldType, ConstexprString FieldName>
-struct Field {
-    using Type = FieldType;
-    static constexpr inline auto Name = FieldName;
-};
-
-namespace detail {
 
 template<typename T>
 struct IsField : public std::false_type {};

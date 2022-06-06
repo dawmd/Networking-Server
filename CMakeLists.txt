@@ -15,6 +15,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra -Wshadow -Wconversion -Werror -pedantic -O2")
 set(SOURCE_FILES
     src/server.cpp
     src/random.cpp
+    src/network/socket.cpp
 )
 
 add_executable(robots-server ${SOURCE_FILES})

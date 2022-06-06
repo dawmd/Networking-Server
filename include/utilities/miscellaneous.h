@@ -13,6 +13,11 @@ T swap_endiannes(T element) {
     return *reinterpret_cast<T*>(bytes);
 }
 
+template<typename E>
+constexpr auto to_underlying(E e) {
+    return static_cast<std::underlying_type_t<E>>(e);
+}
+
 } // namespace SK
 
 #endif // __SK_UTILITIES_MISCELLANEOUS_H__

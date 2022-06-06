@@ -1,13 +1,11 @@
 #ifndef __SK_MESSAGES_SERVER_MESSAGES_H__
 #define __SK_MESSAGES_SERVER_MESSAGES_H__
 
-#include <messages/basic_message.h>
+#include <messages/message.h>
 #include <messages/common.h>
 #include <messages/network_list.h>
 #include <messages/network_map.h>
 #include <messages/network_string.h>
-
-#include <variant>
 
 namespace SK {
 
@@ -54,7 +52,7 @@ using BlockPlaced = Message<
     Field<Position, "position">
 >;
 
-using Event = std::variant<BombPlaced, BombExploded, PlayerMoved, BlockPlaced>;
+using Event = MessageWrapper<BombPlaced, BombExploded, PlayerMoved, BlockPlaced>;
 
 } // namespace Event
 
@@ -91,7 +89,7 @@ using GameEnded = Message<
     Field<Map<PlayerId, Score>, "scores">
 >;
 
-using ServerMessage = std::variant<Hello, AcceptedPlayer, GameStarted, Turn, GameEnded>;
+using ServerMessage = MessageWrapper<Hello, AcceptedPlayer, GameStarted, Turn, GameEnded>;
 
 } // namespace SK
 
