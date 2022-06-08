@@ -15,7 +15,7 @@ namespace SK {
 template<typename FieldType, ConstexprString FieldName>
 struct Field {
     using Type = FieldType;
-    static constexpr inline auto Name = FieldName;
+    static constexpr auto Name = FieldName;
 };
 
 namespace detail {

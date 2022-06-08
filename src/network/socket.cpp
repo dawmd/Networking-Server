@@ -1,3 +1,4 @@
+#include "network/socket_options.h"
 #include <utilities/miscellaneous.h>
 #include <network/socket.h>
 
@@ -45,13 +46,33 @@ TCPSocket::~TCPSocket() {
     }
 }
 
+namespace {
+
+inline auto get_option_value(const auto &option) {
+    using type          = std::decay_t<decltype(option)>;
+    using value_type    = typename type::value_type;
+
+    if constexpr (std::same_as<value_type, bool>) {
+        return static_cast<int>(option.value);
+    } else if constexpr (std::same_as<type, ReceiveTimeout>) {
+        timeval result;
+        result.tv_sec = option.value / 1000;
+        result.tv_usec = (option.value % 1000) * 1000;
+        return result;
+    } else {
+        return option.value;
+    }
+}
+
+} // anonymous namespace
+
 TCPSocket &TCPSocket::set_socket_option(const SocketOption &option) {
     auto set_option = [&](const auto &value, auto level, auto optname) {
         return ::setsockopt(
             socket_fd,
             to_underlying(level),
             to_underlying(optname),
-            reinterpret_cast<const void*>(value),
+            reinterpret_cast<const void*>(&value),
             static_cast<socklen_t>(sizeof(value))
         );
     };
@@ -64,14 +85,10 @@ TCPSocket &TCPSocket::set_socket_option(const SocketOption &option) {
     resolve_error(std::visit(
         [&](const auto &value) {
             using type          = std::decay_t<decltype(value)>;
-            using value_type    = typename type::value_type;
             const auto level    = type::option_level;
             const auto optname  = type::option_type;
 
-            if constexpr (std::same_as<value_type, bool>)
-                return set_option(static_cast<int>(value.value), level, optname);
-            else
-                return set_option(value.value, level, optname);
+            return set_option(get_option_value(value), level, optname);
         },
         option
     ));

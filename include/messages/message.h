@@ -25,7 +25,7 @@ public:
 
     template<typename F>
         requires std::is_invocable_v<F, const typename Fields::Type&...>
-    auto apply(F &&f) -> std::invoke_result_t<F, const typename Fields::Type&...> const {
+    auto apply(F &&f) const -> std::invoke_result_t<F, const typename Fields::Type&...> {
         return std::apply(std::move(f), this->values);
     }
 };
@@ -71,6 +71,8 @@ struct Message : public BasicMessage<Types...> {
     : Super{std::move(base)} {}
     Message(const Super &base)
     : Super{base} {}
+    // Message(Message&&) = default;
+    // Message(const Message&) = default;
 };
 
 /* Variant of basic messages -- implementation of serialisation and deserialisation */

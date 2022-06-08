@@ -97,6 +97,10 @@ public:
         return future;
     }
 
+    std::size_t size() const {
+        return threads.size();
+    }
+
 private:
     [[nodiscard]] std::optional<Task> get_task() {
         const std::lock_guard<std::mutex> lock{mutex};
