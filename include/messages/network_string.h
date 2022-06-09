@@ -13,6 +13,10 @@ public:
     using SizeType = u8;
     using CharType = typename std::string::value_type;
 
+    template<typename... Args>
+    String(Args &&...args)
+    : std::string(std::forward<Args>(args)...) {}
+
     template<IsInserter Inserter>
     void serialize(Inserter &inserter) const {
         const SizeType size = static_cast<SizeType>(this->size());
