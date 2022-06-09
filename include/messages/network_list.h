@@ -14,6 +14,10 @@ class List : public std::vector<T> {
 public:
     using SizeType = u32;
 
+    template<typename... Args>
+    List(Args &&...args)
+    : std::vector<T>(std::forward<Args>(args)...) {}
+
     template<IsInserter Inserter>
     void serialize(Inserter &inserter) const {
         const SizeType size = static_cast<SizeType>(this->size());

@@ -30,7 +30,7 @@ public:
     }
 };
 
-template<typename... Types, ConstexprString... Names>
+template<typename... Types, ConstevalString... Names>
 class Serializer<BasicMessage<Field<Types, Names>...>> final {
 public:
     using Self = BasicMessage<Field<Types, Names>...>;
@@ -66,13 +66,9 @@ struct Message : public BasicMessage<Types...> {
     using Type = Message<Id, Types...>;
     static constexpr std::byte ID = std::byte{Id};
 
-    Message() = default;
-    Message(Super &&base)
-    : Super{std::move(base)} {}
-    Message(const Super &base)
-    : Super{base} {}
-    // Message(Message&&) = default;
-    // Message(const Message&) = default;
+    template<typename... Args>
+    Message(Args &&...args)
+    : Super(std::forward<Args>(args)...) {}
 };
 
 /* Variant of basic messages -- implementation of serialisation and deserialisation */

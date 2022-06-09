@@ -45,7 +45,7 @@ template<
     typename Inserter = detail::PhantomInserter,
     typename Consumer = detail::PhantomConsumer<std::byte>
 >
-concept Serializable = requires (const T &t, Inserter &inserter, Consumer &consumer) {
+concept Serializable = requires (T &t, Inserter &inserter, Consumer &consumer) {
     Serializer<T>::serialize(t, inserter);
     { Serializer<T>::deserialize(consumer) } -> std::same_as<T>;
 };

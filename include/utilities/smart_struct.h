@@ -1,7 +1,7 @@
 #ifndef __SK_UTILITIES_SMART_STRUCT_H__
 #define __SK_UTILITIES_SMART_STRUCT_H__
 
-#include <utilities/constexpr_string.h>
+#include <utilities/consteval_string.h>
 
 #include <algorithm>
 #include <concepts>
@@ -12,7 +12,7 @@
 
 namespace SK {
 
-template<typename FieldType, ConstexprString FieldName>
+template<typename FieldType, ConstevalString FieldName>
 struct Field {
     using Type = FieldType;
     static constexpr auto Name = FieldName;
@@ -20,7 +20,7 @@ struct Field {
 
 namespace detail {
 
-/* Checks if there are no two values that are the same among the passed ConstexprStrings */
+/* Checks if there are no two values that are the same among the passed ConstevalStrings */
 consteval bool distinct_field_names(auto ...names) {
     constexpr std::size_t size = sizeof...(names);
     if constexpr (size == 0) {
@@ -51,7 +51,7 @@ consteval std::size_t find_index() {
 template<typename T>
 struct IsField : public std::false_type {};
 
-template<typename T, ConstexprString Name>
+template<typename T, ConstevalString Name>
 struct IsField<Field<T, Name>> : public std::true_type {};
 
 } // namespace detail
@@ -64,13 +64,13 @@ protected:
     std::tuple<typename Fields::Type...> values;
 
 public:
-    template<ConstexprString Name>
+    template<ConstevalString Name>
     constexpr auto &get() {
         constexpr auto index = detail::find_index<Name, (Fields::Name)...>();
         return std::get<index>(values);
     }
 
-    template<ConstexprString Name>
+    template<ConstevalString Name>
     constexpr const auto &get() const {
         constexpr auto index = detail::find_index<Name, (Fields::Name)...>();
         return std::get<index>(values);

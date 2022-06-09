@@ -14,6 +14,10 @@ class Map : public std::map<K, V> {
 public:
     using SizeType = u32;
 
+    template<typename... Args>
+    Map(Args &&...args)
+    : std::map<K, V>(std::forward<Args>(args)...) {}
+
     template<IsInserter Inserter>
     void serialize(Inserter &inserter) const {
         const SizeType size = static_cast<SizeType>(this->size());
