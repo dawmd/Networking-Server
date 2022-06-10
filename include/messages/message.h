@@ -17,6 +17,10 @@ struct BasicMessage : public SmartStruct<Fields...> {
 public:
     using Type = BasicMessage<Fields...>;
 
+    template<typename... Args>
+    BasicMessage(Args &&...args)
+    : SmartStruct<Fields...>(std::forward<Args>(args)...) {}
+
     template<typename F>
         requires std::is_invocable_v<F, typename Fields::Type&...>
     decltype(auto) apply(F &&f) {

@@ -64,6 +64,10 @@ protected:
     std::tuple<typename Fields::Type...> values;
 
 public:
+    template<typename... Args>
+    SmartStruct(Args &&...args)
+    : values(std::forward<Args>(args)...) {}
+    
     template<ConstevalString Name>
     constexpr auto &get() {
         constexpr auto index = detail::find_index<Name, (Fields::Name)...>();

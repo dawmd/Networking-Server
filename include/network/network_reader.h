@@ -35,6 +35,9 @@ public:
         return {begin, end};
     }
     std::size_t receive();
+    void send(std::span<std::byte> span) const {
+        socket.send(span);
+    }
 };
 
 } // namespace SK
