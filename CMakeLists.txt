@@ -16,6 +16,8 @@ set(SOURCE_FILES
     src/server.cpp
     src/random.cpp
     src/network/socket.cpp
+    src/network/network_reader.cpp
+    src/network/message_reader.cpp
 )
 
 add_executable(robots-server ${SOURCE_FILES})
