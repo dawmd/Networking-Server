@@ -9,13 +9,13 @@ template<typename T>
 class Monitor {
 private:
     T object;
-    std::mutex mutex;
+    mutable std::mutex mutex;
 
 private:
     class Proxy {
     private:
         Monitor &monitor;
-        std::scoped_lock<std::mutex> lock;
+        std::lock_guard<std::mutex> lock;
     
     public:
         Proxy(Monitor &monitor_)
@@ -30,12 +30,12 @@ private:
     class ConstProxy {
     private:
         const Monitor &monitor;
-        std::scoped_lock<std::mutex> lock;
+        std::lock_guard<std::mutex> lock;
 
     public:
-        ConstProxy(const Monitor &monitor_)
+        ConstProxy(const Monitor &monitor_, std::mutex &mutex)
         : monitor{monitor_}
-        , lock{monitor.lock} {}
+        , lock{mutex} {}
 
         const T &get() const {
             return monitor.object;
@@ -47,12 +47,16 @@ public:
     Monitor(Args &&...args)
     : object(std::forward<Args>(args)...) {}
 
+    Monitor(Monitor &&monitor)
+    : object{std::move(monitor.object)}
+    , mutex{} {}
+
     Proxy lock() {
         return Proxy{*this};
     }
 
     ConstProxy lock() const {
-        return ConstProxy{*this};
+        return ConstProxy{*this, this->mutex};
     }
 };
 

@@ -1,27 +1,23 @@
-#include "network/socket_options.h"
+#include <network/socket_options.h>
 #include <utilities/miscellaneous.h>
 #include <network/socket.h>
 
+#include <fcntl.h>
 #include <netinet/in.h>
-#include <stdexcept>
 #include <sys/socket.h>
-#include <type_traits>
 #include <unistd.h>
 
 #include <bit>  // std::endian
-
-#include <iostream>
 #include <cstring>
+#include <stdexcept>
+#include <type_traits>
 
 namespace SK {
 
 TCPSocket::TCPSocket() {
-    std::cout << "b\n";
     socket_fd = ::socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-    std::cout << "b\n";
     if (socket_fd == -1)
         throw std::runtime_error{strerror(errno)}; // TODO
-    std::cout << "b\n";
 }
 
 TCPSocket::TCPSocket(TCPSocket &&other) {
@@ -46,9 +42,20 @@ TCPSocket::~TCPSocket() {
     }
 }
 
+void TCPSocket::set_socket_blocking(bool value) {
+    if (socket_fd == -1)
+        return;
+    int flags = ::fcntl(socket_fd, F_GETFL, 0);
+    if (flags == -1)
+        return;
+    flags = value ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+    if (::fcntl(socket_fd, F_SETFL, flags) != 0)
+        throw std::runtime_error{strerror(errno)}; // TODO
+}
+
 namespace {
 
-inline auto get_option_value(const auto &option) {
+inline decltype(auto) get_option_value(const auto &option) {
     using type          = std::decay_t<decltype(option)>;
     using value_type    = typename type::value_type;
 
@@ -99,8 +106,8 @@ TCPSocket &TCPSocket::set_socket_option(const SocketOption &option) {
 void TCPSocket::bind(std::uint16_t port) {
     sockaddr_in6 address{};
     address.sin6_family = AF_INET6;
-    address.sin6_addr = in6addr_any;
-    address.sin6_port = [&]() {
+    address.sin6_addr   = in6addr_any;
+    address.sin6_port   = [&]() {
         if constexpr (std::endian::native == std::endian::big)
             return port;
         else
@@ -122,12 +129,14 @@ void TCPSocket::listen(int queue_length) {
         throw std::runtime_error{"TODO"}; // TODO
 }
 
-TCPSocket TCPSocket::accept() {
-    TCPSocket result{};
-    result.socket_fd = ::accept(socket_fd, nullptr, nullptr);
-    if (result.socket_fd == -1)
+std::optional<TCPSocket> TCPSocket::accept() {
+    int sock_fd = ::accept(socket_fd, nullptr, nullptr);
+    if (sock_fd == -1) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return std::nullopt;
         throw std::runtime_error{strerror(errno)}; // TODO
-    return result;
+    }
+    return TCPSocket{sock_fd};
 }
 
 std::size_t TCPSocket::receive(std::span<std::byte> span) const {

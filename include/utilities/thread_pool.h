@@ -60,7 +60,7 @@ public:
 
     template<typename F, typename... Args>
         requires std::invocable<std::decay_t<F>&&, std::decay_t<Args>&&...>
-    auto add_task(F &&f, Args &&...args) {
+    decltype(auto) add_task(F &&f, Args &&...args) {
         using R = std::invoke_result_t<std::decay_t<F>&&, std::decay_t<Args>&&...>;
 
         std::promise<R> promise;

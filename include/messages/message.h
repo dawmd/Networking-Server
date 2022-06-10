@@ -19,13 +19,13 @@ public:
 
     template<typename F>
         requires std::is_invocable_v<F, typename Fields::Type&...>
-    auto apply(F &&f) -> std::invoke_result_t<F, typename Fields::Type&...> {
+    decltype(auto) apply(F &&f) {
         return std::apply(std::move(f), this->values);
     }
 
     template<typename F>
         requires std::is_invocable_v<F, const typename Fields::Type&...>
-    auto apply(F &&f) const -> std::invoke_result_t<F, const typename Fields::Type&...> {
+    decltype(auto) apply(F &&f) const {
         return std::apply(std::move(f), this->values);
     }
 };

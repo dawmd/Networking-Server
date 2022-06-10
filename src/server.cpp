@@ -94,12 +94,16 @@
  *
 */
 
-#include <network/socket.h>
-#include <network/socket_options.h>
-#include <utilities/thread_pool.h>
 #include <messages/client_messages.h>
 #include <messages/server_messages.h>
 #include <messages/serializer.h>
+#include <network/socket.h>
+#include <network/socket_options.h>
+#include <thread>
+#include <utilities/thread_pool.h>
+#include <utilities/thread_safe_queue.h>
+
+#include "messenger.h"
 
 #include <array>
 #include <atomic>
@@ -109,91 +113,50 @@
 #include <queue>
 #include <vector>
 
+#include <iostream>
+
 using namespace SK;
 
-inline bool is_complete_message(std::span<std::byte> span) {
-    if (!span.size_bytes())
-        return false;
-    
-    auto it = span.begin();
-    switch (*it) {
-        case std::byte{0}:
-            if (span.size_bytes() > 1)
-                return span.size_bytes() == 2 + std::to_integer<std::size_t>(*++it);
-            return false;
-        case std::byte{1}:
-        case std::byte{2}:
-            return true;
-        case std::byte{3}:
-            return span.size_bytes() > 1;
-        default:
-            throw std::runtime_error{"TODO"}; // TODO
+void listener_routine(ThreadSafeQueue<TCPSocket> &queue, TCPSocket &listener, std::atomic_bool &should_stop) {
+    while (!should_stop) {
+        if (auto sock = listener.accept()) {
+            queue.push(std::move(sock).value());
+            std::cout << "WHAAA\n";
+        }
+        else
+            std::this_thread::yield();
     }
 }
-
-std::optional<ClientMessage> messenger_routine(TCPSocket &socket, std::atomic_bool &should_finish) {
-    std::optional<ClientMessage> result = std::nullopt;
-    std::array<std::byte, 512> buffer{};
-    auto begin = buffer.begin();
-    auto end = buffer.end();
-
-    struct ByteConsumer {
-        std::span<std::byte> buffer;
-        std::size_t index = 0;
-
-        ByteConsumer(std::span<std::byte> span)
-        : buffer{span} {}
-
-        std::byte get() const {
-            if (index < buffer.size_bytes())
-                return buffer[index];
-            throw std::out_of_range{"TODO"}; // TODO
-        }
-
-        void pop() {
-            ++index;
-        }
-    };
-
-    while (!should_finish) {
-        if (end == buffer.end()) {
-            const std::size_t byte_count = static_cast<std::size_t>(std::distance(begin, end));
-            std::memmove(
-                reinterpret_cast<void*>(buffer.data()),
-                reinterpret_cast<const void*>(&*begin),
-                byte_count
-            );
-            begin = buffer.begin();
-            end = buffer.begin() + byte_count;
-        }
-        
-        end += socket.receive(std::span{end, buffer.end()});
-        
-        if (is_complete_message(std::span{begin, end})) {
-            ByteConsumer consumer{std::span{begin, end}};
-            result = Serializer<ClientMessage>::deserialize(consumer);
-            begin += consumer.index;
-        }
-    }
-
-    return result;
-}
-
-void game(ThreadPool &thread_pool, TCPSocket &listener) {
-
-}
-
-
 
 void run() {
-    ThreadPool thread_pool{};
-    TCPSocket listener{};
-    listener.set_socket_option(ReusePort{true});
-    listener.bind(12345); // TODO
-    listener.set_socket_option(IPv6Only{false});
-    listener.listen(25); // TODO
+    Messenger messenger{1, 3};
+    ThreadSafeQueue<TCPSocket> passive_clients{};
+    std::atomic_bool should_stop = false;
+    ThreadPool tp{1};
+    TCPSocket listener_socket{};
+    listener_socket.set_socket_option(ReusePort{true});
+    listener_socket.bind(12345);
+    listener_socket.set_socket_blocking(false);
+    listener_socket.listen(5);
+    std::thread listener{listener_routine, std::ref(passive_clients), std::ref(listener_socket), std::ref(should_stop)};
 
+    // browse the queue until you get enough players
+    // start a game
+    // repeat
+    std::size_t player_count = 0;
+    while (player_count < 1) {
+        if (!passive_clients.empty()) {
+            auto sock = passive_clients.move_out();
+            messenger.add_player(ClientInfo(std::move(sock), "some name", "some addr"));
+            ++player_count;
+        } else {
+            std::this_thread::yield();
+        }
+    }
 
+    messenger.clear();
+    should_stop = true;
+    listener.join();
 }
 
 int main() {

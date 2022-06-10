@@ -5,13 +5,21 @@
 #include <messages/network_string.h>
 #include <messages/server_messages.h>
 #include <network/socket.h>
+#include <stdexcept>
+#include <thread>
 #include <utilities/monitor.h>
 #include <utilities/thread_pool.h>
 
 #include <array>
 #include <cstddef>
+#include <cstring>  // std::memmove
+#include <functional>
 #include <optional>
 #include <vector>
+
+#include "auxiliary.h"
+
+#define GET_FIELD(name) get<#name>()
 
 namespace SK {
 
@@ -19,6 +27,13 @@ struct ClientInfo {
     TCPSocket socket;
     String name;
     String address;
+
+    ClientInfo() = delete;
+
+    ClientInfo(TCPSocket &&socket_, const String &name_, const String &address_)
+    : socket{std::move(socket_)}
+    , name{name_}
+    , address{address_} {}
 };
 
 enum class Status {
@@ -26,17 +41,155 @@ enum class Status {
     DISCONNECTED
 };
 
+// TODO: ditch this
+struct Disconnected {};
+
+inline void send_message(const TCPSocket &socket, const ServerMessage &message) {
+    std::array<std::byte, 1024> buffer{};
+    SimpleInserter inserter{std::span{buffer.begin(), buffer.end()}};
+    Serializer<ServerMessage>::serialize(message, inserter);
+    socket.send(std::span{buffer.begin(), buffer.begin() + inserter.index});
+}
+
+inline AcceptedPlayer get_accepted_player(const ClientInfo &info) {
+    AcceptedPlayer result{};
+    result.GET_FIELD(player).GET_FIELD(name) = info.name;
+    result.GET_FIELD(player).GET_FIELD(address) = info.address;
+    return result;
+}
+
+inline bool is_complete_message(std::span<std::byte> span) {
+    if (!span.size_bytes())
+        return false;
+    
+    auto it = span.begin();
+    switch (*it) {
+        case Join::ID:
+            if (span.size_bytes() > 1)
+                return span.size_bytes() >= std::to_integer<std::size_t>(*++it) + 2;
+            return false;
+        case PlaceBlock::ID:
+        case PlaceBomb::ID:
+            return true;
+        case Move::ID:
+            return span.size_bytes() > 1;
+        default:
+            throw std::runtime_error{"TODO"}; // TODO
+    }
+}
+
 Status player_routine(const std::size_t game_length, const std::size_t players_count,
                       const Monitor<std::vector<ClientInfo>> &players, const ClientInfo &info,
-                      Monitor<std::optional<ClientMessage>> &reply)
+                      Monitor<std::optional<ClientMessage>> &reply,
+                      const Monitor<std::vector<ServerMessage>> &server_messages)
 {
-    
+    try {
+        std::size_t player_index = 0;
+        while (player_index < players_count) {
+            const std::size_t current_players_count = players.lock().get().size();
+            while (player_index < current_players_count)
+                send_message(
+                    info.socket,
+                    get_accepted_player(players.lock().get().at(player_index++))
+                );
+            std::this_thread::yield();
+        }
+
+        GameStarted game_started{};
+        for (std::size_t i = 0; i < players_count; ++i)
+            game_started.GET_FIELD(players).insert({
+                static_cast<PlayerId>(i), [&]() {
+                    Player player{};
+                    auto lock = players.lock();
+                    player.GET_FIELD(name) = lock.get().at(i).name;
+                    player.GET_FIELD(address) = lock.get().at(i).address;
+                    return player;
+                }()
+            });
+        send_message(info.socket, game_started);
+
+        std::array<std::byte, 512> buffer{};
+        auto begin_it = buffer.begin();
+        auto end_it = buffer.begin();
+        std::size_t message_index = 0;
+
+        while (message_index <= game_length) {
+            if (is_complete_message(std::span<std::byte>{begin_it, end_it})) {
+                SimpleConsumer consumer{std::span<std::byte>{begin_it, end_it}};
+                auto client_message = Serializer<ClientMessage>::deserialize(consumer);
+                reply.lock().get() = std::move(client_message);
+                begin_it += consumer.index;
+            }
+
+            if (end_it == buffer.end() && begin_it != buffer.begin()) {
+                const std::size_t distance = static_cast<std::size_t>(std::distance(begin_it, end_it));
+                std::memmove(
+                    reinterpret_cast<void*>(buffer.data()),
+                    reinterpret_cast<const void*>(&*begin_it),
+                    distance
+                );
+                begin_it = buffer.begin();
+                end_it = begin_it + distance;
+            }
+
+            if (end_it != buffer.end())
+                info.socket.receive(std::span<std::byte>{end_it, buffer.end()});
+
+            /* lock */ {
+                /* TODO: exception handling */
+                auto lock = server_messages.lock();
+                if (message_index < lock.get().size())
+                    send_message(info.socket, lock.get().at(message_index));
+                ++message_index;
+            }
+        }
+    } catch (const Disconnected&) {
+        return Status::DISCONNECTED;
+    }
+
+    return Status::CONNECTED;
 }
 
 Status observer_routine(const std::size_t game_length, const std::size_t players_count,
-                        const std::vector<ClientInfo> &players, const ClientInfo &info)
+                        const std::vector<ClientInfo> &players, const ClientInfo &info,
+                        const Monitor<std::vector<ServerMessage>> &server_messages)
 {
+    try {
+        std::size_t player_index = 0;
+        while (player_index < players_count) {
+            const std::size_t current_players_count = players.size();
+            while (player_index < current_players_count)
+                send_message(
+                    info.socket,
+                    get_accepted_player(players[player_index++])
+                );
+        }
 
+        GameStarted game_started{};
+        for (std::size_t i = 0; i < players_count; ++i)
+            game_started.GET_FIELD(players).insert({
+                static_cast<PlayerId>(i), [&]() {
+                    Player player{};
+                    player.GET_FIELD(name) = players[i].name;
+                    player.GET_FIELD(address) = players[i].address;
+                    return player;
+                }()
+            });
+        send_message(info.socket, game_started);
+        
+        std::size_t message_index = 0;
+        while (message_index <= game_length) {
+            /* TODO: exception handling */
+            auto lock = server_messages.lock();
+            if (message_index < lock.get().size())
+                send_message(info.socket, lock.get().at(message_index));
+            ++message_index;
+        }
+    } catch (const Disconnected&) {
+        return Status::DISCONNECTED;
+    }
+    
+    return Status::CONNECTED;
 }
 
 class Messenger {
@@ -74,14 +227,15 @@ public:
         auto lock = game_state.players.lock();
         const std::size_t index = lock.get().size();
         lock.get().push_back(std::move(info));
-        game_state.player_messages.push_back(std::nullopt);
+        game_state.player_messages.emplace_back(Monitor<std::optional<ClientMessage>>{std::nullopt});
         game_state.tasks.push_back(thread_pool.add_task(
             player_routine,
             game_length,
             players_count,
             std::ref(game_state.players),
             std::ref(lock.get()[index]),
-            std::ref(game_state.player_messages[index])
+            std::ref(game_state.player_messages[index]),
+            std::ref(game_state.server_messages)
         ));
     }
 
@@ -93,7 +247,8 @@ public:
             game_length,
             players_count,
             std::ref(game_state.players.lock().get()),
-            std::ref(game_state.observers[index])
+            std::ref(game_state.observers[index]),
+            std::ref(game_state.server_messages.lock().get())
         ));
     }
 
@@ -118,11 +273,12 @@ public:
         for (std::size_t i = 0; i < players_count; ++i)
             if (game_state.tasks[i].get() == Status::CONNECTED)
                 result.push_back(std::move(game_state.players.lock().get()[i]));
+
         for (std::size_t i = 0; i < game_state.observers.size(); ++i)
             if (game_state.tasks[i + players_count].get() == Status::CONNECTED)
                 result.push_back(std::move(game_state.observers[i]));
         
-        game_state = GameState{game_length, players_count};
+        // game_state = GameState{game_length, players_count}; // TODO
 
         return result;
     }

@@ -4,5 +4,9 @@ CMakeCache.txt
 Makefile
 robots-server
 
+.gdb_history
+peda-session-robots-server.txt
+
 .cache/
+.vscode/
 CMakeFiles/
