@@ -1,4 +1,11 @@
-# Bombowe Roboty
+# Goals of the project
+The project was part of my networking course. It was supposed to make me comfortable with working with the POSIX socket API and how to work with data processing in performance-sensitive contexts, especially when the data comes from the network and multiple peers; and it succeeded.
+
+My personal goal for the project was mainly to practise my meta-programming skills: I created a compile-time, reflection-like mechanism based on templates to generate serialiser-deserialiser functionality for custom types. The user could freely extend the range of types the code could (de)serialise by creating structs from primitve types and basic containers: vector, map, string. Aside from this, I implemented basic versions of consteval strings, thread pool, TCP socket, move-only functions (a feature coming in C++23), and additional proxy structures (mainly for providing thread-safety). However, not everything went according to plan; out of the things I was planning to finish but I didn't make it in time, I am unsatisfied with the main functionality of the program – handling incoming connections and processing those already communicating with the server. I used my implementation of thread pool for that, but some issues occurred. It needs to be adjusted to the reality of the internet (mainly by increasing the time span between processing consecutive turns of data sent by the peers); refactoring that part of the code would also be of great value. However, the biggest advantage that could be gained would be moving from the current thread-pool-based model to something more asynchronous, e.g. by using the Boost.Asio library. Having said that, I am still satisfied with how the project turned out – not only was I able to implement my compile-time serialisation mechanism and reflection, but I also learnt a lot along the way.
+
+Instead of improving this project, I have moved to a more challenging task – providing support for QUIC and HTTP/3 for an already existing and used framework – [Seastar](https://github.com/scylladb/seastar) – which I work on along with my friends. Check out my progress [here](https://github.com/muzarski/seastar_quic).
+
+# Bombowe Roboty (the description of the project, Polish only)
 ## 0. Dostarczone programy
 
 Do uruchomienia programów potrzeba [kompilatora Rusta](https://rustup.rs/), a także pewnych [bibliotek systemowych](https://github.com/bevyengine/bevy/blob/main/docs/linux_dependencies.md).
